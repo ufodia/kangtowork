@@ -222,13 +222,23 @@ Point Secp256K1::ComputePublicKey(Int *privKey) {
     if(b)
       break;
   }
-  Q = GTable[256 * i + (b-1)];
-  i++;
 
-  for(; i < 32; i++) {
-    b = privKey->GetByte(i);
-    if(b)
-      Q = Add2(Q, GTable[256 * i + (b-1)]);
+  if (i < 32) {
+    Q = GTable[256 * i + (b-1)];
+    i++;
+
+    // Prefetch next few table entries for better cache performance
+    if (i < 32) __builtin_prefetch(&GTable[256 * i], 0, 1);
+    if (i + 1 < 32) __builtin_prefetch(&GTable[256 * (i + 1)], 0, 1);
+
+    for(; i < 32; i++) {
+      b = privKey->GetByte(i);
+      if(b) {
+        Q = Add2(Q, GTable[256 * i + (b-1)]);
+        // Prefetch next entry
+        if (i + 1 < 32) __builtin_prefetch(&GTable[256 * (i + 1)], 0, 1);
+      }
+    }
   }
 
   Q.Reduce();

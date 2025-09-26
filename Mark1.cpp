@@ -183,6 +183,10 @@ bool dp_insert_unique(fp_t fp,const Int& idx){
     if(h2 == 0) h2 = 1;
 
     size_t h = h1;
+    // Prefetch first few probe positions
+    __builtin_prefetch(&dp.st_used[h], 0, 1);
+    __builtin_prefetch(&dp.slots[h], 0, 1);
+
     for(size_t i=0;i<dp.cap;++i){
         if(!dp.st_used[h].load(std::memory_order_acquire)){
             uint8_t exp=0;
@@ -204,8 +208,13 @@ bool dp_insert_unique(fp_t fp,const Int& idx){
             return false;
         }
         h = (h + h2) & mask;
+        // Prefetch next position if not too many iterations
+        if(i < 8) {
+            size_t next_h = (h + h2) & mask;
+            __builtin_prefetch(&dp.st_used[next_h], 0, 1);
+        }
     }
-    return false;            
+    return false;
 }
 bool dp_find(fp_t fp,Int& out){
     size_t mask = dp.cap - 1;
@@ -214,6 +223,10 @@ bool dp_find(fp_t fp,Int& out){
     if(h2 == 0) h2 = 1;
 
     size_t h = h1;
+    // Prefetch first probe position
+    __builtin_prefetch(&dp.st_used[h], 0, 1);
+    __builtin_prefetch(&dp.slots[h], 0, 1);
+
     for(size_t i=0;i<dp.cap;++i){
         if(!dp.st_used[h].load(std::memory_order_acquire))
             return false;
@@ -222,6 +235,11 @@ bool dp_find(fp_t fp,Int& out){
             return true;
         }
         h = (h + h2) & mask;
+        // Prefetch next position for better performance
+        if(i < 4) {
+            size_t next_h = (h + h2) & mask;
+            __builtin_prefetch(&dp.st_used[next_h], 0, 1);
+        }
     }
     return false;
 }
@@ -313,18 +331,73 @@ struct xoshiro256ss {
 template<unsigned N>
 static inline void batchAdd(Point* base,Point* plus){
     std::array<Int,N> dX;
-    for(unsigned i=0;i<N;++i) dX[i].ModSub(&plus[i].x,&base[i].x);
+    // Unroll small loops for better performance
+    if constexpr(N >= 4) {
+        for(unsigned i=0;i<N;i+=4){
+            dX[i].ModSub(&plus[i].x,&base[i].x);
+            dX[i+1].ModSub(&plus[i+1].x,&base[i+1].x);
+            dX[i+2].ModSub(&plus[i+2].x,&base[i+2].x);
+            dX[i+3].ModSub(&plus[i+3].x,&base[i+3].x);
+        }
+    } else {
+        for(unsigned i=0;i<N;++i) dX[i].ModSub(&plus[i].x,&base[i].x);
+    }
     static thread_local IntGroup grp(N); grp.Set(dX.data()); grp.ModInv();
 
-    for(unsigned i=0;i<N;++i){
-        Int dY; dY.ModSub(&plus[i].y,&base[i].y);
-        Int k ; k .ModMulK1(&dY,&dX[i]);
-        Int k2; k2.ModSquareK1(&k);
-        Int xn(base[i].x); xn.ModNeg(); xn.ModAdd(&k2); xn.ModSub(&plus[i].x);
-        Int dx(base[i].x); dx.ModSub(&xn); dx.ModMulK1(&k);
-        base[i].x = xn;
-        base[i].y.ModNeg();
-        base[i].y.ModAdd(&dx);
+    // Unroll the main computation loop
+    if constexpr(N >= 4) {
+        for(unsigned i=0;i<N;i+=4){
+            // First point
+            Int dY0; dY0.ModSub(&plus[i].y,&base[i].y);
+            Int k0 ; k0 .ModMulK1(&dY0,&dX[i]);
+            Int k2_0; k2_0.ModSquareK1(&k0);
+            Int xn0(base[i].x); xn0.ModNeg(); xn0.ModAdd(&k2_0); xn0.ModSub(&plus[i].x);
+            Int dx0(base[i].x); dx0.ModSub(&xn0); dx0.ModMulK1(&k0);
+            base[i].x = xn0;
+            base[i].y.ModNeg();
+            base[i].y.ModAdd(&dx0);
+
+            // Second point
+            Int dY1; dY1.ModSub(&plus[i+1].y,&base[i+1].y);
+            Int k1 ; k1 .ModMulK1(&dY1,&dX[i+1]);
+            Int k2_1; k2_1.ModSquareK1(&k1);
+            Int xn1(base[i+1].x); xn1.ModNeg(); xn1.ModAdd(&k2_1); xn1.ModSub(&plus[i+1].x);
+            Int dx1(base[i+1].x); dx1.ModSub(&xn1); dx1.ModMulK1(&k1);
+            base[i+1].x = xn1;
+            base[i+1].y.ModNeg();
+            base[i+1].y.ModAdd(&dx1);
+
+            // Third point
+            Int dY2; dY2.ModSub(&plus[i+2].y,&base[i+2].y);
+            Int k2 ; k2 .ModMulK1(&dY2,&dX[i+2]);
+            Int k2_2; k2_2.ModSquareK1(&k2);
+            Int xn2(base[i+2].x); xn2.ModNeg(); xn2.ModAdd(&k2_2); xn2.ModSub(&plus[i+2].x);
+            Int dx2(base[i+2].x); dx2.ModSub(&xn2); dx2.ModMulK1(&k2);
+            base[i+2].x = xn2;
+            base[i+2].y.ModNeg();
+            base[i+2].y.ModAdd(&dx2);
+
+            // Fourth point
+            Int dY3; dY3.ModSub(&plus[i+3].y,&base[i+3].y);
+            Int k3 ; k3 .ModMulK1(&dY3,&dX[i+3]);
+            Int k2_3; k2_3.ModSquareK1(&k3);
+            Int xn3(base[i+3].x); xn3.ModNeg(); xn3.ModAdd(&k2_3); xn3.ModSub(&plus[i+3].x);
+            Int dx3(base[i+3].x); dx3.ModSub(&xn3); dx3.ModMulK1(&k3);
+            base[i+3].x = xn3;
+            base[i+3].y.ModNeg();
+            base[i+3].y.ModAdd(&dx3);
+        }
+    } else {
+        for(unsigned i=0;i<N;++i){
+            Int dY; dY.ModSub(&plus[i].y,&base[i].y);
+            Int k ; k .ModMulK1(&dY,&dX[i]);
+            Int k2; k2.ModSquareK1(&k);
+            Int xn(base[i].x); xn.ModNeg(); xn.ModAdd(&k2); xn.ModSub(&plus[i].x);
+            Int dx(base[i].x); dx.ModSub(&xn); dx.ModMulK1(&k);
+            base[i].x = xn;
+            base[i].y.ModNeg();
+            base[i].y.ModAdd(&dx);
+        }
     }
 }
 
@@ -365,7 +438,7 @@ static void buildDP_segment(const RangeSeg& seg,uint64_t target,
     std::array<uint64_t,K_DP> wraps{};
     std::array<Point, K_DP> cur, stepPts;
 
-    const size_t BATCH_SIZE = 256;
+    const size_t BATCH_SIZE = 4096;  // Increased for better cache utilization
     std::vector<std::pair<fp_t,Int>> batch;
     batch.reserve(BATCH_SIZE);
 
@@ -468,8 +541,17 @@ static void worker(uint32_t tid,const RangeSeg& seg,const Point& pub,
 
     madvise(dp.slots,dp.mapBytes,MADV_SEQUENTIAL);
 
-    uint64_t local=0; const uint64_t FLUSH = 1ULL<<18; 
+    uint64_t local=0; const uint64_t FLUSH = 1ULL<<18;
     std::vector<PendingCheck> cache; cache.reserve(CACHE_LIMIT);
+
+    // Use aligned cache for better SIMD performance
+    alignas(64) std::array<PendingCheck, CACHE_LIMIT> aligned_cache;
+    size_t cache_idx = 0;
+
+    // Prefetch hints for better cache performance
+    auto prefetch_dp = [](size_t idx) {
+        __builtin_prefetch(&dp.slots[idx], 0, 1);  // Read prefetch
+    };
 
     while(!solved.load()){
         for(unsigned i=0;i<K;++i){
@@ -504,12 +586,13 @@ static void worker(uint32_t tid,const RangeSeg& seg,const Point& pub,
             if((IntLow64(cur[i].x)&mask)!=0) continue;
 
             fp_t fp = splitmix64(IntLow64(cur[i].x)^uint64_t(!cur[i].y.IsEven()));
-            cache.push_back({fp,i});
+            aligned_cache[cache_idx++] = {fp,i};
 
-            if(cache.size() >= CACHE_LIMIT){
+            if(cache_idx >= CACHE_LIMIT){
 #pragma omp critical(dp_query)
                 {
-                    for(auto& item: cache){
+                    for(size_t c=0; c<cache_idx; ++c){
+                        auto& item = aligned_cache[c];
                         if(!bloom->Find(uint32_t(item.fp))) continue;
                         Int trap;
                         if(!dp_find(item.fp,trap)) continue;
@@ -532,7 +615,7 @@ static void worker(uint32_t tid,const RangeSeg& seg,const Point& pub,
                         }
                     }
                 }
-                cache.clear();
+                cache_idx = 0;
                 if(solved.load()) return;
             }
         }

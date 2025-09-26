@@ -36,6 +36,11 @@ public:
   static uint32_t getSeed32();
   static void SleepMillis(uint32_t millis);
 
+  // Performance profiling helpers
+  static double getProcessMemoryUsage();
+  static double getCPUTime();
+  static void printPerformanceStats(const char* operation, double startTime, uint64_t operations = 0);
+
 #ifdef WIN64
   static LARGE_INTEGER perfTickStart;
   static double perfTicksPerSec;

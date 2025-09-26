@@ -50,6 +50,10 @@ class SimpleMixSplit {
     h ^= h >> 33;
     h *= UINT64_C(0xc4ceb9fe1a85ec53);
     h ^= h >> 33;
+    // Additional mixing for better distribution
+    h ^= h >> 32;
+    h *= UINT64_C(0x9fb21c651e98df25);
+    h ^= h >> 32;
     return h;
   }
 

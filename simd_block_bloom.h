@@ -92,6 +92,9 @@ public:
     const uint32 idx = fastRange(static_cast<uint32>(rotl64(h, 32)), bucket_count_);
     const __m256i mask = MakeMask(static_cast<uint32>(h));
 
+    // Prefetch bucket for better cache performance
+    __builtin_prefetch(&reinterpret_cast<__m256i*>(directory_.get())[idx], 1, 3);
+
     auto* bucket = &reinterpret_cast<__m256i*>(directory_.get())[idx];
     const __m256i cur = _mm256_load_si256(bucket);
     _mm256_store_si256(bucket, _mm256_or_si256(cur, mask));
@@ -129,6 +132,10 @@ public:
     const uint64 h   = hasher_(key);
     const uint32 idx = fastRange(static_cast<uint32>(rotl64(h, 32)), bucket_count_);
     const __m256i mask   = MakeMask(static_cast<uint32>(h));
+
+    // Prefetch bucket for better cache performance
+    __builtin_prefetch(&reinterpret_cast<const __m256i*>(directory_.get())[idx], 0, 1);
+
     const __m256i bucket = reinterpret_cast<const __m256i*>(directory_.get())[idx];
     return _mm256_testc_si256(bucket, mask) != 0;
   }

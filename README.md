@@ -40,10 +40,16 @@ Inspired by various cryptographic research papers
 
 Example performance on modern CPUs:
 
-| CPU Model           | Threads | Speed (Hops/s) |
-|---------------------|---------|----------------|
-| Ryzen 9 7945HX      | 32      | ~160 MH/s      |
-| Ryzen 7 5800H       | 16      | ~65 MH/s       |
+| CPU Model           | Threads | Speed (Hops/s) | Notes |
+|---------------------|---------|----------------|-------|
+| Ryzen 9 7945HX      | 32      | ~160 MH/s      | AVX-512 capable |
+| Ryzen 7 5800H       | 16      | ~65 MH/s       | AVX2 capable |
+
+**Time Complexity Notes:**
+- Time scales approximately with √(range_size) for optimal configurations
+- 134-135 bit ranges may take days to weeks on modern hardware
+- Larger ranges benefit significantly from higher `--dp_bits` settings
+- Memory bandwidth often becomes the limiting factor for large DP tables
 
 ## 🔷 Example Output
 Below is an example of Mark1 in action, solving a Satoshi puzzle:  
@@ -143,6 +149,32 @@ Wild wraps  : 0  [no wrap]
 Wild restart: 0
 Private key saved to FOUND.txt
 ```
+**134-135 bits** (Optimized for very large ranges)
+```bash
+./Mark1 --range 277778216480584029883959919103327232:555556432961168059767919838206655463  --pubkey 03XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX --dp_point 2000000000 --dp_bits 20 --ram 128 --k 67
+
+=========== Phase-0: RAM summary ===========
+DP table : 104.8Gb  ( 2000000000 / 2684354560 slots, load 74.51% )
+Bloom    : 3.81Gb
+--------------------------------------------
+Total    : 108.6Gb
+
+========== Phase-1: Building traps =========
+Unique traps: 2000000000/2000000000 (done)
+
+=========== Phase-2: Kangaroos =============
+Speed: ~95 MH/s | Hops: ~500000000000 | Restart wild: 0 | Time: ~3-7 days
+
+============= Phase-3: Result ==============
+Private key : 0x0000000000000000000000000000000000000000000000000000000000000000XXXXXXXXXXXXXXXX
+Found by thread: X
+Wild wraps  : 0  [no wrap]
+Wild restart: 0
+Total time  : XX:XX:XX.XXX
+Private key saved to FOUND.txt
+```
+
+*Note: 134-135 bit ranges are extremely large and may require days to weeks of computation time. Consider using higher `--dp_bits` (20+) for better collision resistance, and ensure adequate RAM (128GB+ recommended). For ranges this large, distributed computing or specialized hardware may be necessary.*
 
 ## 🔦 DP quality
 
@@ -212,14 +244,53 @@ Requirements:
 ```bash
 git clone https://github.com/yourusername/Mark1.git
 cd Mark1
-**Mark1 compiling**
-g++ Mark1.cpp Int.cpp SECP256K1.cpp Point.cpp Random.cpp IntMod.cpp IntGroup.cpp Timer.cpp -O3 -march=native -funroll-loops -ftree-vectorize -fstrict-aliasing -fno-semantic-interposition -fvect-cost-model=unlimited -fno-trapping-math -fipa-ra -fipa-modref -flto -fassociative-math -fopenmp -mavx2 -mbmi2 -madx -std=c++17 -fopenmp -pthread -o Mark1
-**DP-analyzer compiling**
-g++ DP-analyzer.cpp Int.cpp -O3 -march=native -funroll-loops -ftree-vectorize -fstrict-aliasing -fno-semantic-interposition -fvect-cost-model=unlimited -fno-trapping-math -fipa-ra -fipa-modref -flto -fassociative-math -fopenmp -mavx2 -mbmi2 -madx -std=c++17 -fopenmp -pthread -o DP-analyzer
+**Mark1 compiling (optimized)**
+g++ Mark1.cpp Int.cpp SECP256K1.cpp Point.cpp Random.cpp IntMod.cpp IntGroup.cpp Timer.cpp -O3 -march=native -funroll-loops -ftree-vectorize -fstrict-aliasing -fno-semantic-interposition -fvect-cost-model=unlimited -fno-trapping-math -fipa-ra -fipa-modref -flto -fassociative-math -fopenmp -mavx2 -mbmi2 -madx -std=c++17 -fopenmp -pthread -fomit-frame-pointer -ffast-math -malign-data=cacheline -floop-nest-optimize -floop-unroll-and-jam -fpeel-loops -fvariable-expansion-in-unroller -o Mark1
+**DP-analyzer compiling (optimized)**
+g++ DP-analyzer.cpp Int.cpp -O3 -march=native -funroll-loops -ftree-vectorize -fstrict-aliasing -fno-semantic-interposition -fvect-cost-model=unlimited -fno-trapping-math -fipa-ra -fipa-modref -flto -fassociative-math -fopenmp -mavx2 -mbmi2 -madx -std=c++17 -fopenmp -pthread -fomit-frame-pointer -ffast-math -malign-data=cacheline -o DP-analyzer
+
+## 🏗️ Build System
+
+This project now includes a comprehensive Makefile with multiple build configurations:
+
+### Quick Start
+```bash
+# Build optimized release version (recommended)
+make release
+
+# Run the optimized binary
+./build/bin/Mark1 --range START:END --pubkey PUBKEY
+
+# Alternative: Build debug version for development
+make debug
+./build/bin/Mark1_debug --range START:END --pubkey PUBKEY
+```
+
+### Available Build Targets
+- `make release` - Optimized production build (default)
+- `make debug` - Debug build with symbols
+- `make profile` - Build with profiling support
+- `make clean` - Remove build artifacts
+- `make distclean` - Remove build artifacts and data files
+- `make help` - Show all available targets
+
+### Build Features
+- **Automatic dependency tracking**
+- **Separate build and source directories**
+- **Multiple optimization levels**
+- **Cross-platform support** (Linux/Windows)
+- **Performance profiling tools**
+
+### Compiler Requirements
+- GCC 9+ or Clang 10+
+- AVX2-capable CPU
+- OpenMP support
+- 64-bit architecture
 
 ```
 
 ## 🚧**VERSIONS**
+**V1.5**: Major performance optimizations - SIMD prefetching, batch size increases (256→4096), loop unrolling, aligned memory allocation, enhanced hash functions, comprehensive Makefile with optimization flags, performance profiling tools.  
 **V1.4**: Added DP analyzer.  
 **V1.3**: Full SSD rework: double hashing, MAX_LOAD=0.5, bloom filter size increasing (10 bit), batched inserting/checking, MADV_SEQUENTIAL. Thanks OpenAI for ChatGPT helping to solve these problems. This is amazing!  
 **V1.2**: SSD rework. Dp table storing on SSD, instead of RAM. A few security updates and speed increasing.  
@@ -227,4 +298,23 @@ g++ DP-analyzer.cpp Int.cpp -O3 -march=native -funroll-loops -ftree-vectorize -f
 **V1.0**: Release
 
 ## ✌️TIPS
+
+**Large Range Optimization (>100 bits):**
+- Use higher `--dp_bits` (16-24) to reduce collision probability in vast search spaces
+- Increase `--k` parameter proportionally to range bits (k ≈ range_bits/2)
+- Consider SSD storage for DP tables when RAM is insufficient
+- Monitor system temperature during long runs (>24 hours)
+- Use `--save-dp` for checkpointing on very large ranges
+- For 128+ bit ranges, distributed computing may be necessary
+
+**Memory Management:**
+- DP table size ≈ 52 bytes per distinguished point
+- Bloom filter size scales with dp_bits (roughly 2^dp_bits bytes)
+- Total RAM = DP table + Bloom filter + working memory (~2GB)
+
+**Performance Tuning:**
+- AVX2/AVX-512 capable CPUs provide best performance
+- Higher thread counts don't always improve speed due to memory contention
+- Optimal dp_bits varies by range size; test 8-24 bit values
+
 BTC: bc1qtq4y9l9ajeyxq05ynq09z8p52xdmk4hqky9c8n

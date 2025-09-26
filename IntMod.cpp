@@ -909,10 +909,7 @@ void Int::ModMulK1(Int *a, Int *b) {
   uint64_t ah, al;
   uint64_t t[NB64BLOCK];
 #if BISIZE==256
-  uint64_t r512[8];
-  r512[5] = 0;
-  r512[6] = 0;
-  r512[7] = 0;
+  uint64_t r512[8] = {0};  // Initialize to zero for better performance
 #else
   uint64_t r512[12];
   r512[5] = 0;

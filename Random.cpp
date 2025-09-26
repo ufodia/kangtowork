@@ -63,15 +63,24 @@ inline unsigned long rk_random(rk_state *state)
 {
   unsigned long y;
 
-  if (state->pos == RK_STATE_LEN)
+  if (__builtin_expect(state->pos == RK_STATE_LEN, 0))
   {
     int i;
 
-    for (i=0;i<N-M;i++)
+    // Unroll the first loop for better performance
+    for (i=0;i<N-M;i+=4)
     {
-      y = (state->key[i] & UPPER_MASK) | (state->key[i+1] & LOWER_MASK);
-      state->key[i] = state->key[i+M] ^ (y>>1) ^ (-(y & 1) & MATRIX_A);
+      unsigned long y0 = (state->key[i] & UPPER_MASK) | (state->key[i+1] & LOWER_MASK);
+      unsigned long y1 = (state->key[i+1] & UPPER_MASK) | (state->key[i+2] & LOWER_MASK);
+      unsigned long y2 = (state->key[i+2] & UPPER_MASK) | (state->key[i+3] & LOWER_MASK);
+      unsigned long y3 = (state->key[i+3] & UPPER_MASK) | (state->key[i+4] & LOWER_MASK);
+
+      state->key[i] = state->key[i+M] ^ (y0>>1) ^ (-(y0 & 1) & MATRIX_A);
+      state->key[i+1] = state->key[i+1+M] ^ (y1>>1) ^ (-(y1 & 1) & MATRIX_A);
+      state->key[i+2] = state->key[i+2+M] ^ (y2>>1) ^ (-(y2 & 1) & MATRIX_A);
+      state->key[i+3] = state->key[i+3+M] ^ (y3>>1) ^ (-(y3 & 1) & MATRIX_A);
     }
+
     for (;i<N-1;i++)
     {
       y = (state->key[i] & UPPER_MASK) | (state->key[i+1] & LOWER_MASK);
