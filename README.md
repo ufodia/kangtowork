@@ -71,12 +71,12 @@ Unique traps: 500000/500000 (done)
 Speed: 35.91 MH/s | Hops: 179568640 | Restart wild: 0 | Time: 0:0:5
 
 ============= Phase-3: Result ==============
-Private key : 0x000000000000000000000000000000000000000000000000006ABE1F9B67E114
+Private key : [REDACTED: example private key]
 Found by thr: 17
 Wild wraps  : 0  [no wrap]
 Wild restart: 0
 Total time  : 00:00:01.190
-Private key : saved to FOUND.txt
+Private key :[REDACTED: example private key]
 ```
 **60 bits**  
 ```bash
@@ -95,12 +95,12 @@ Unique traps: 600000/600000 (done)
 Speed: 126.51 MH/s | Hops: 632553472 | Restart wild: 0 | Time: 0:0:5
 
 ============= Phase-3: Result ==============
-Private key : 0x0000000000000000000000000000000000000000000000000FC07A1825367BBE
+Private key : [REDACTED: example private key]
 Found by thr: 3
 Wild wraps  : 0  [no wrap]
 Wild restart: 0
 Total time  : 00:00:04.096
-Private key : saved to FOUND.txt
+Private key :[REDACTED: example private key]
 ```
 **75 bits**
 ```bash
@@ -119,7 +119,7 @@ Unique traps: 200000000/200000000 (done)
 Speed: 109.95 MH/s | Hops: 133433945344 | Restart wild: 0 | Time: 0:14:05
 
 ============= Phase-3: Result ==============
-Private key : 0x0000000000000000000000000000000000000000000004C5CE114686A1336E07
+Private key : [REDACTED: example private key]
 Found by thread: 12
 Wild wraps  : 0  [no wrap]
 Wild restart: 0
@@ -143,7 +143,7 @@ Unique traps: 500000000/500000000 (done)
 Speed: 103.94 MH/s | Hops: 364681496320 | Restart wild: 0 | Time: 0:38:10
 
 ============= Phase-3: Result ==============
-Private key : 0x00000000000000000000000000000000000000000000EA1A5C66DCC11B5AD180
+Private key : [REDACTED: example private key]
 Found by thread: 6
 Wild wraps  : 0  [no wrap]
 Wild restart: 0
@@ -166,7 +166,7 @@ Unique traps: 2000000000/2000000000 (done)
 Speed: ~95 MH/s | Hops: ~500000000000 | Restart wild: 0 | Time: ~3-7 days
 
 ============= Phase-3: Result ==============
-Private key : 0x0000000000000000000000000000000000000000000000000000000000000000XXXXXXXXXXXXXXXX
+Private key : [REDACTED: example private key]
 Found by thread: X
 Wild wraps  : 0  [no wrap]
 Wild restart: 0
@@ -318,3 +318,13 @@ make debug
 - Optimal dp_bits varies by range size; test 8-24 bit values
 
 BTC: bc1qtq4y9l9ajeyxq05ynq09z8p52xdmk4hqky9c8n
+
+```
+
+## Support this project
+
+<p align="center">
+  <a href="https://buymeacoffee.com/ufodia">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60">
+  </a>
+</p>
